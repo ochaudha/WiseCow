@@ -8,50 +8,31 @@ on:
 
 jobs:
   build-and-push:
-    runs-on: self-hosted   # <-- Use your self-hosted runner
-    permissions:
-      contents: read
-      packages: write
+    runs-on: self-hosted   # your Mac runner
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          push: true
-          tags: ghcr.io/${{ github.repository_owner }}/wisecow:latest
+        run: |
+          docker build -t ghcr.io/${{ github.repository_owner }}/wisecow:latest .
+          docker push ghcr.io/${{ github.repository_owner }}/wisecow:latest
 
   deploy:
     needs: build-and-push
-    runs-on: self-hosted   # <-- Self-hosted for deploy too
+    runs-on: self-hosted   # run deploy on your Mac too
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.30.0
-
-      - name: Configure Kubeconfig and verify cluster
-        run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
-          export KUBECONFIG=$HOME/.kube/config
-          kubectl cluster-info   # <-- Check connectivity to the cluster
+      - name: Verify Kubernetes connection
+        run: kubectl get nodes   # confirm connection
 
       - name: Deploy to Kubernetes
         run: |
-          export KUBECONFIG=$HOME/.kube/config
           kubectl set image deployment/wisecow-deployment wisecow=ghcr.io/${{ github.repository_owner }}/wisecow:latest
           kubectl rollout status deployment/wisecow-deployment
