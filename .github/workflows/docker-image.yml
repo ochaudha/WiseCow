@@ -42,13 +42,16 @@ jobs:
         with:
           version: v1.30.0
 
-      - name: Configure Kubeconfig
+      - name: Configure Kubeconfig and verify cluster
         run: |
           mkdir -p $HOME/.kube
           echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+          export KUBECONFIG=$HOME/.kube/config
+          kubectl cluster-info   # <-- Check connectivity to the cluster
 
       - name: Deploy to Kubernetes
         run: |
+          export KUBECONFIG=$HOME/.kube/config
           kubectl set image deployment/wisecow-deployment wisecow=ghcr.io/${{ github.repository_owner }}/wisecow:latest
           kubectl rollout status deployment/wisecow-deployment
-
