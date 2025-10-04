@@ -1,4 +1,4 @@
-name: Deploy Wisecow from GHCR
+name: CI/CD for Wisecow
 
 on:
   push:
@@ -26,7 +26,11 @@ jobs:
       - name: Verify Kubernetes connection
         run: kubectl get nodes
 
-      - name: Deploy Wisecow
+      - name: Apply Wisecow deployment (first-time or update)
+        run: |
+          kubectl apply -f wisecow-deployment.yaml
+
+      - name: Update image to latest
         run: |
           kubectl set image deployment/wisecow-deployment wisecow=ghcr.io/atind13/wisecow:latest
           kubectl rollout status deployment/wisecow-deployment
