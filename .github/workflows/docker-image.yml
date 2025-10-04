@@ -1,4 +1,4 @@
-name: CI/CD for Wisecow
+name: Deploy Wisecow from GHCR
 
 on:
   push:
@@ -7,27 +7,7 @@ on:
     branches: ["main"]
 
 jobs:
-  build-and-push:
-    runs-on: self-hosted   # Your MacBook runner
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Log in to GitHub Container Registry
-        run: |
-          # Use your GitHub username (atind13) and GHCR_PAT token
-          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u atind13 --password-stdin
-
-      - name: Build and push Docker image
-        run: |
-          docker build -t ghcr.io/atind13/wisecow:latest .
-          docker push ghcr.io/atind13/wisecow:latest
-
   deploy:
-    needs: build-and-push
     runs-on: self-hosted   # Your MacBook runner
     steps:
       - name: Checkout repository
@@ -46,7 +26,7 @@ jobs:
       - name: Verify Kubernetes connection
         run: kubectl get nodes
 
-      - name: Deploy to Kubernetes
+      - name: Deploy Wisecow
         run: |
-          kubectl set image deployment/wisecow-deployme
-          
+          kubectl set image deployment/wisecow-deployment wisecow=ghcr.io/atind13/wisecow:latest
+          kubectl rollout status deployment/wisecow-deployment
