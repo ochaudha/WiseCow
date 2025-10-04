@@ -32,7 +32,7 @@ jobs:
 
   deploy:
     needs: build-and-push
-    runs-on: [self-hosted, macos, Atindras-MacBook-Pro]   # <-- Self-hosted for deploy too
+    runs-on: self-hosted   # <-- Self-hosted for deploy too
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
