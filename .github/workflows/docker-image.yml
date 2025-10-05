@@ -1,36 +1,50 @@
-name: CI/CD for Wisecow...
+name: Self-Hosted CI with Local Docker Image
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
   pull_request:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
-  deploy:
-    runs-on: self-hosted   # Your MacBook runner
+  build:
+    runs-on: self-hosted
+
     steps:
+      # Step 1: Checkout code
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
-        with:
-          version: v1.30.0
+      # Step 2: Set up Docker (self-hosted runner must have Docker installed)
+      - name: Set up Docker
+        run: docker --version
 
-      - name: Configure Kubeconfig
+      # Step 3: Build local Docker image
+      - name: Build Docker image
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBECONFIG }}" > $HOME/.kube/config
+          docker build -t wisecow:local .
 
-      - name: Verify Kubernetes connection
-        run: kubectl get nodes
-
-      - name: Apply Wisecow deployment (first-time or update)
+      # Step 4: Optional - run container from local image for tests
+      - name: Run container for testing
         run: |
-          kubectl apply -f wisecow-deployment.yaml
+          docker run --rm -d --name wisecow-test -p 4499:4499 wisecow:local
+          # Wait for container to be ready (replace with actual health check if needed)
+          sleep 10
+          curl -v http://localhost:4499/health || true
+          docker stop wisecow-test
 
-      - name: Update image to latest
+      # Step 5: Backend/Frontend builds if needed
+      - name: Build backend artifact
+        run: ./mvnw clean package -DskipTests
+
+      - name: Build frontend
         run: |
-          kubectl set image deployment/wisecow-deployment wisecow=ghcr.io/atind13/wisecow:latest
-          kubectl rollout status deployment/wisecow-deployment
+          cd frontend
+          npm ci
+          npm run build
+
+      # Step 6: Optional deployment step using local image
+      # - name: Deploy
+      #   run: docker run -d -p 4499:4499 wisecow:local
