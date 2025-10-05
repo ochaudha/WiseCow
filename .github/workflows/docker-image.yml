@@ -55,13 +55,22 @@ jobs:
       # Step 7: Wait for pods to be ready
       - name: Wait for deployment rollout
         run: |
-          # Option 1: Fixed deployment name
           kubectl rollout status deployment/wisecow-deployment --timeout=120s
-
-          # Option 2: Dynamically detect deployment name
-          # DEPLOYMENT_NAME=$(kubectl get deploy -o jsonpath='{.items[0].metadata.name}')
-          # kubectl rollout status deployment/$DEPLOYMENT_NAME --timeout=120s
-
           kubectl get pods
           kubectl get svc
           kubectl get ingress
+
+      # Step 8: Validate final deployment
+      - name: Validate deployment with curl
+        run: |
+          echo "Waiting 10 seconds for service to stabilize..."
+          sleep 10
+
+          # Option 1: Validate using NodePort
+          NODE_PORT=$(kubectl get svc wisecow-service -o jsonpath='{.spec.ports[0].nodePort}')
+          echo "NodePort is $NODE_PORT"
+          curl -v http://localhost:$NODE_PORT || true
+
+          # Option 2: Validate using Ingress hostname if available
+          # INGRESS_HOST=$(kubectl get ingress wisecow-ingress -o jsonpath='{.spec.rules[0].host}')
+          # curl -vk https://$INGRESS_HOST || true
