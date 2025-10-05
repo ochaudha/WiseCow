@@ -1,4 +1,4 @@
-name: Self-Hosted CI with Local Docker Image
+name: Self-Hosted CI with Local Docker & Kubernetes
 
 on:
   push:
@@ -9,42 +9,43 @@ on:
       - main
 
 jobs:
-  build:
+  build-deploy:
     runs-on: self-hosted
 
     steps:
-      # Step 1: Checkout code
+      # Step 1: Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # Step 2: Set up Docker (self-hosted runner must have Docker installed)
-      - name: Set up Docker
+      # Step 2: Ensure Docker is available
+      - name: Docker version
         run: docker --version
 
       # Step 3: Build local Docker image
       - name: Build Docker image
+        run: docker build -t wisecow:local .
+
+      # Step 4: Load image into local K8s cluster (minikube/self-hosted)
+      - name: Load Docker image into cluster
         run: |
-          docker build -t wisecow:local .
+          # If using minikube
+          # minikube image load wisecow:local
 
-      # Step 4: Optional - run container from local image for tests
-      - name: Run container for testing
+          # If using Docker Desktop / self-hosted cluster
+          kubectl delete pod -l app=wisecow --ignore-not-found
+          # Ensure your cluster nodes can access local images
+
+      # Step 5: Apply Kubernetes manifests
+      - name: Deploy to Kubernetes
         run: |
-          docker run --rm -d --name wisecow-test -p 4499:4499 wisecow:local
-          # Wait for container to be ready (replace with actual health check if needed)
-          sleep 10
-          curl -v http://localhost:4499/health || true
-          docker stop wisecow-test
+          kubectl apply -f wisecow-deployment.yaml
+          kubectl apply -f wisecow-service.yaml
+          kubectl apply -f wisecow-ingress.yaml
 
-      # Step 5: Backend/Frontend builds if needed
-      - name: Build backend artifact
-        run: ./mvnw clean package -DskipTests
-
-      - name: Build frontend
+      # Step 6: Wait for pods to be ready
+      - name: Wait for deployment rollout
         run: |
-          cd frontend
-          npm ci
-          npm run build
-
-      # Step 6: Optional deployment step using local image
-      # - name: Deploy
-      #   run: docker run -d -p 4499:4499 wisecow:local
+          kubectl rollout status deployment/wisecow --timeout=120s
+          kubectl get pods
+          kubectl get svc
+          kubectl get ingress
