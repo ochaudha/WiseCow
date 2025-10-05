@@ -7,8 +7,8 @@ metadata:
 spec:
   selector:
     app: wisecow
+  type: NodePort   # instead of ClusterIP
   ports:
-    - protocol: TCP
-      port: 80        # Service port (accessible within cluster)
-      targetPort: 4499 # Container port
-  type: ClusterIP
+    - port: 80
+      targetPort: 4499
+      nodePort: 30007   # fixed port between 30000–32767
